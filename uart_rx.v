@@ -25,8 +25,10 @@ module uart_rx(
 	localparam S_START = 2'd1;
 	// Capturing data. Persists for the remaining 7 UART cycles.
 	localparam S_DATA = 2'd2;
-	
-	reg[2:0] state;
+	// Done capturing. Wait until rx goes high.
+	localparam S_STOP = 2'd3;
+
+	reg[1:0] state;
 
 
 	// UART clock divider and syncer.
@@ -36,9 +38,12 @@ module uart_rx(
 
 	always @(posedge clk) begin
 		baud_tick <= 0;
-		
-		if (state == S_IDLE) begin
+
+		// IDLE or STOP
+		if (state == S_IDLE || state == S_STOP) begin
 			baud_clk_counter <= 0;
+
+		// else
 		end else begin
 			baud_clk_counter <= baud_clk_counter + 1;
 			if ((state == S_START && baud_clk_counter >= 7812) ||
@@ -49,19 +54,38 @@ module uart_rx(
 		end
 	end
 
+
 	// Data capturer.
-	// Resp. for IDLE -> START and DATA -> IDLE.
+	reg[2:0] bit_idx;
+
 	always @(posedge clk) begin
 		data_valid <= 0;
-		// TODO DUMMY
-		data[0] <= baud_tick;
 
+		// IDLE
 		if (state == S_IDLE) begin
-			if (!rx)
-				state = S_START;
+			bit_idx <= 0;
+			if (!rx_sync2)
+				state <= S_START;
+
+		// STOP
+		end else if (state == S_STOP) begin
+			if (rx_sync2)
+				state <= S_IDLE;
+
+		// else
 		end else begin
-			if (baud_tick)
-				state = S_DATA;
+			if (baud_tick) begin
+				state <= S_DATA;
+
+				data[bit_idx] <= rx_sync2;
+
+				if (bit_idx == 7) begin
+					state <= S_STOP;
+					data_valid <= 1;
+				end else begin
+					bit_idx <= bit_idx + 1;
+				end
+			end
 		end
 	end
 

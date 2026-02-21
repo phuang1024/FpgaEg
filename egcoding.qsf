@@ -63,14 +63,14 @@ set_location_assignment PIN_B8 -to rst
 set_location_assignment PIN_V10 -to rx
 set_location_assignment PIN_W10 -to tx
 
-set_location_assignment PIN_A8 -to dummy_out[0]
-set_location_assignment PIN_A9 -to dummy_out[1]
-set_location_assignment PIN_A10 -to dummy_out[2]
-set_location_assignment PIN_B10 -to dummy_out[3]
-set_location_assignment PIN_D13 -to dummy_out[4]
-set_location_assignment PIN_C13 -to dummy_out[5]
-set_location_assignment PIN_E14 -to dummy_out[6]
-set_location_assignment PIN_D14 -to dummy_out[7]
+set_location_assignment PIN_A8 -to led_out[0]
+set_location_assignment PIN_A9 -to led_out[1]
+set_location_assignment PIN_A10 -to led_out[2]
+set_location_assignment PIN_B10 -to led_out[3]
+set_location_assignment PIN_D13 -to led_out[4]
+set_location_assignment PIN_C13 -to led_out[5]
+set_location_assignment PIN_E14 -to led_out[6]
+set_location_assignment PIN_D14 -to led_out[7]
 
 
 

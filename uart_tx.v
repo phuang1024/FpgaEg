@@ -21,7 +21,7 @@ module uart_tx(
 	always @(posedge clk) begin
 		baud_tick <= 0;
 
-		if (!rst || state == S_IDLE) begin
+		if (rst || state == S_IDLE) begin
 			baud_clk_counter <= 0;
 
 		end else begin
@@ -39,7 +39,7 @@ module uart_tx(
 	reg[3:0] bit_idx;
 
 	always @(posedge clk) begin
-		if (!rst) begin
+		if (rst) begin
 			state <= S_IDLE;
 
 		end else begin

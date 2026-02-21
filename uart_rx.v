@@ -38,7 +38,7 @@ module uart_rx(
 	reg[12:0] baud_clk_counter;
 
 	always @(posedge clk) begin
-		if (!rst) begin
+		if (rst) begin
 			baud_tick <= 0;
 			baud_clk_counter <= 0;
 
@@ -66,7 +66,7 @@ module uart_rx(
 	reg[2:0] bit_idx;
 
 	always @(posedge clk) begin
-		if (!rst) begin
+		if (rst) begin
 			state <= S_IDLE;
 			data_valid <= 0;
 			bit_idx <= 0;

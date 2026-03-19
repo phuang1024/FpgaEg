@@ -5,7 +5,8 @@ module uart_tx(
 	input wire[7:0] data,
 	input wire start,
 	output reg tx,
-	output reg busy
+	// Is true for a single clock cycle once finish transmitting byte.
+	output reg done
 );
 	// FSM states.
 	localparam S_IDLE = 1'd0;
@@ -45,15 +46,14 @@ module uart_tx(
 		end else begin
 			if (state == S_IDLE) begin
 				bit_idx <= 0;
-				busy <= 0;
+				done <= 0;
 				tx <= 1;
 
-				if (!start)
+				if (start) begin
 					state <= S_DATA;
+				end
 
 			end else begin
-				busy <= 1;
-
 				if (baud_tick) begin
 					if (bit_idx == 0)
 						tx <= 0;
@@ -64,6 +64,7 @@ module uart_tx(
 
 					if (bit_idx == 9) begin
 						state <= S_IDLE;
+						done <= 1;
 					end else begin
 						bit_idx <= bit_idx + 1;
 					end

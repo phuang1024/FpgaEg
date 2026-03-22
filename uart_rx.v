@@ -1,6 +1,6 @@
-// UART receiver.
+// UART receiver. Reads bytes from computer.
 // Automatically divides clock, detects start bit, and syncs input.
-// Output flag data_valid set to 1 for one clock cycle when done.
+// Output flag data_valid set to 1 for one clock cycle when done reading byte.
 
 module uart_rx(
 	input wire clk,

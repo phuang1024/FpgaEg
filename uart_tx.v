@@ -1,3 +1,7 @@
+// UART module to transmit bytes to computer.
+// Set data, and set start signal to high for one clock cycle.
+// When done sending the byte, the "done" signal goes high for one cycle.
+
 module uart_tx(
 	input wire clk,
 	input wire rst,

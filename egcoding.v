@@ -1,5 +1,7 @@
-// EG coding module. Interface:
+// Main EG coding module.
+// This is a big FSM that has three modes of operation (below).
 // Communication rx and tx is UART 8N1.
+
 // Expects a single command byte from computer.
 //		0: Read data.
 //		1: Compress.
@@ -7,7 +9,7 @@
 
 // Read data:
 // 	Computer subsequently sends:
-//		2 bytes little endian of data length (in bytes).
+//		2 bytes little endian: Data length (in bytes).
 //		Data as byte array.
 
 // Compress:
@@ -17,8 +19,15 @@
 
 // Write result:
 // 	FPGA sends:
-//		2 bytes little endian of data length.
+//		2 bytes little endian: Data length.
 //		Data as byte array.
+
+// The module keeps two buffers: Input and output buffer.
+// "Read data": Data is read into input buffer.
+// "Compress": Generate EG compressed data in output buffer.
+// "Write result": Transmits data in output buffer.
+
+// Buffers implemented as byte register array length 255.
 
 module egcoding(
 	input wire clk,
@@ -29,7 +38,6 @@ module egcoding(
 	output reg tx
 );
 	// Clock divider for debugging.
-	//reg clk_debug;
 	reg[10:0] clk_debug_counter;
 	always @(posedge clk) begin
 		clk_debug <= 0;
@@ -51,6 +59,7 @@ module egcoding(
 	// Index of rx data array, used for r/w.
 	reg[15:0] rx_mem_ptr;
 
+	// RX module.
 	wire[7:0] rx_data;
 	wire rx_valid;
 	uart_rx rx_module(
@@ -67,6 +76,7 @@ module egcoding(
 	reg[15:0] tx_mem_len;
 	reg[15:0] tx_mem_ptr;
 
+	// TX module.
 	reg[7:0] tx_data;
 	reg tx_start;
 	wire tx_done;

@@ -78,12 +78,10 @@ module egcoding(
 	);
 
 
-	// Output data array.
-	reg[7:0] tx_mem[255:0];
+	// Output data as bit array.
+	reg tx_mem[2047:0];
 	reg[15:0] tx_mem_len;
 	reg[15:0] tx_mem_ptr;
-	// Ptr to bit index of current byte.
-	reg[3:0] tx_mem_bit;
 
 	// TX module.
 	reg[7:0] tx_data;
@@ -99,14 +97,12 @@ module egcoding(
 	);
 
 
-	// Index i has the num of bits of i.
-	reg[3:0] num_bits_lut[255:0];
+	// Index i is num of bits of i.
+	reg[3:0] size_lut[255:0];
+	// Current value to compress.
+	reg[7:0] curr_value;
 	// Number of bits in current value to compress.
-	reg[3:0] comp_num_bits;
-	// min(comp_num_bits, tx_mem_bit). Is the number of bits to write first pass.
-	reg[3:0] comp_num_bits_first;
-	// Value to write to memory next. Is 0 for ZEROS, and data for VALUE.
-	reg[7:0] comp_write_value;
+	reg[3:0] curr_size;
 
 
 	// Idle. Waiting for rx transmission to start.
@@ -117,12 +113,10 @@ module egcoding(
 	// Reading data bytes.
 	localparam S_READ_DATA = 4'd2;
 
-	// Start state per byte.
+	// Extract value and value size.
 	localparam S_COMP_START = 4'd3;
-	// Write zeros.
-	localparam S_COMP_ZEROS = 4'd4;
-	// Write value.
-	localparam S_COMP_VALUE = 4'd5;
+	// Write compressed value to memory.
+	localparam S_COMP_WRITE = 4'd5;
 	// Done with compression, waiting for TX status byte.
 	localparam S_COMP_DONE = 4'd6;
 
@@ -160,7 +154,6 @@ module egcoding(
 					state <= S_COMP_START;
 					rx_mem_ptr <= 0;
 					tx_mem_ptr <= 0;
-					tx_mem_bit <= 7;
 				end else if (rx_data == 2) begin
 					state <= S_WRITE_LEN1;
 				end
@@ -189,46 +182,27 @@ module egcoding(
 
 		// Compression.
 		end else if (state == S_COMP_START) begin
+			// Check if done.
 			if (rx_mem_ptr == rx_mem_len) begin
-				// Finished. Send a 0 byte next cycle.
+				// Send a 0 byte next cycle via tx.
 				tx_data <= 0;
 				tx_start <= 1;
 
 				tx_mem_len <= tx_mem_ptr;
 				state <= S_COMP_DONE;
-			end else begin
-				comp_num_bits <= num_bits_lut[rx_mem[rx_mem_ptr]];
-				// Set this to min of number of bits available in curr tx byte; or num bits to write.
-				comp_num_bits_first = (comp_num_bits < tx_mem_bits ? comp_num_bits : tx_mem_bit + 1);
-				comp_write_value <= 0;
-				state <= S_COMP_ZEROS;
-			end
-		end else if (state == S_COMP_ZEROS || state == S_COMP_VALUE) begin
-			// Write data. Write comp_num_bits_first first.
-			for (i = 0; i < 8; i = i + 1) begin
-				if (i < comp_num_bits_first) begin
-					tx_mem[tx_mem_ptr][tx_mem_bit - i] <= comp_write_value[comp_num_bits - 1 - i];
-				end
-			end
-			// Check if write filled up current byte.
-			if (comp_num_bits >= tx_mem_bit + 1) begin
-				tx_mem_ptr <= tx_mem_ptr + 1;
-				// Still bits left to write.
-				if (comp_num_bits > tx_mem_bit) begin
-					for (i = 0; i < 8; i = i + 1) begin
-						if (i < 
-					end
-				end
-			end
 
-			// Advance to next state.
-			if (state == S_COMP_ZEROS) begin
-				comp_write_value <= rx_mem[rx_mem_ptr];
-				state <= S_COMP_VALUE;
-			end else if (state == S_COMP_VALUE) begin
-				rx_mem_ptr <= rx_mem_ptr + 1;
-				state <= S_COMP_START;
+			end else begin
+				curr_value <= rx_mem[rx_mem_ptr];
+				curr_size <= size_lut[rx_mem[rx_mem_ptr]];
+				state <= S_COMP_WRITE;
 			end
+		end else if (state == S_COMP_WRITE) begin
+			for (i = 0; i < curr_size; i = i + 1) begin
+				tx_mem[2047 - tx_mem_ptr + i] <= curr_value[curr_size - i - 1];
+			end
+			tx_mem_ptr <= tx_mem_ptr + curr_size;
+			rx_mem_ptr <= rx_mem_ptr + 1;
+			state <= S_COMP_START;
 		end else if (state == S_COMP_DONE) begin
 			// Wait until done sending 0 byte.
 			tx_start <= 0;

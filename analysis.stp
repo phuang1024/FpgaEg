@@ -1,23 +1,12 @@
-<session jtag_chain="USB-Blaster [USB-0]" jtag_device="@1: 10M50DA(.|ES)/10M50DC (0x031050DD)" sof_file="">
+<session jtag_chain="Disabled" jtag_device="" sof_file="">
   <display_tree gui_logging_enabled="0">
     <display_branch instance="auto_signaltap_0" log="USE_GLOBAL_TEMP" signal_set="USE_GLOBAL_TEMP" trigger="USE_GLOBAL_TEMP"/>
   </display_tree>
   <mnemonics/>
   <static_plugin_mnemonics/>
-  <instance enabled="true" entity_name="sld_signaltap" is_auto_node="yes" is_expanded="true" name="auto_signaltap_0" source_file="sld_signaltap.vhd">
+  <instance enabled="false" entity_name="sld_signaltap" is_auto_node="yes" is_expanded="true" name="auto_signaltap_0" source_file="sld_signaltap.vhd">
     <node_ip_info instance_id="0" mfg_id="110" node_id="0" version="6"/>
-    <position_info>
-      <single attribute="active tab" value="0"/>
-      <single attribute="data horizontal scroll position" value="182"/>
-      <single attribute="data vertical scroll position" value="0"/>
-      <single attribute="setup horizontal scroll position" value="0"/>
-      <single attribute="setup vertical scroll position" value="0"/>
-      <single attribute="zoom level denominator" value="4"/>
-      <single attribute="zoom level numerator" value="1"/>
-      <single attribute="zoom offset denominator" value="1"/>
-      <single attribute="zoom offset numerator" value="523776"/>
-    </position_info>
-    <signal_set global_temp="1" name="signal_set: 2026/03/16 15:44:05  #0">
+    <signal_set global_temp="1" is_expanded="true" name="signal_set: 2026/03/16 15:44:05  #0">
       <clock name="clk_debug" polarity="posedge" tap_mode="classic"/>
       <config pipeline_level="0" ram_type="AUTO" reserved_data_nodes="0" reserved_storage_qualifier_nodes="0" reserved_trigger_nodes="0" sample_depth="2048" trigger_in_enable="no" trigger_out_enable="no"/>
       <top_entity/>
@@ -237,15 +226,13 @@
         <trigger_in_editor/>
         <trigger_out_editor/>
       </presentation>
-      <trigger CRC="F2B49D7C" attribute_mem_mode="false" gap_record="true" global_temp="1" name="trigger: 2026/03/16 15:44:05  #1" position="pre" power_up_trigger_mode="false" record_data_gap="true" segment_size="256" storage_mode="off" storage_qualifier_disabled="no" storage_qualifier_port_is_pin="false" storage_qualifier_port_name="auto_stp_external_storage_qualifier" storage_qualifier_port_tap_mode="classic" trigger_type="circular">
+      <trigger CRC="F2B49D7C" attribute_mem_mode="false" gap_record="true" global_temp="1" is_expanded="true" name="trigger: 2026/03/16 15:44:05  #1" position="pre" power_up_trigger_mode="false" record_data_gap="true" segment_size="256" storage_mode="off" storage_qualifier_disabled="no" storage_qualifier_port_is_pin="true" storage_qualifier_port_name="auto_stp_external_storage_qualifier" storage_qualifier_port_tap_mode="classic" trigger_type="circular">
         <power_up_trigger position="pre" storage_qualifier_disabled="no"/>
         <events use_custom_flow_control="no">
-          <level editor="basic_or" enabled="yes" name="condition1" type="advanced">
-            <power_up enabled="yes">
+          <level editor="basic_or" enabled="yes" name="condition1" type="advanced"><power_up enabled="yes">
               <power_up_expression><![CDATA[alt_reduction(alt_true, {((mbpm('X', 'state.S_IDLE') && variable(1))), ((mbpm('X', 'state.S_WRITE_DATA') && variable(1))), ((mbpm('X', 'state.S_WRITE_DATAD') && variable(1))), ((mbpm('X', 'state.S_WRITE_LEN1') && variable(1))), ((mbpm('X', 'state.S_WRITE_LEN1D') && variable(1))), ((mbpm('X', 'state.S_WRITE_LEN2') && variable(1))), ((mbpm('X', 'state.S_WRITE_LEN2D') && variable(1))), (alt_reduction(alt_false, {(mbpm('X', 'tx_data[0]') && variable(1)), (mbpm('X', 'tx_data[1]') && variable(1)), (mbpm('X', 'tx_data[2]') && variable(1)), (mbpm('X', 'tx_data[3]') && variable(1)), (mbpm('X', 'tx_data[4]') && variable(1)), (mbpm('X', 'tx_data[5]') && variable(1)), (mbpm('X', 'tx_data[6]') && variable(1)), (mbpm('X', 'tx_data[7]') && variable(1))})), (alt_reduction(alt_false, {(mbpm('X', 'tx_mem_ptr[0]') && variable(1)), (mbpm('X', 'tx_mem_ptr[10]') && variable(1)), (mbpm('X', 'tx_mem_ptr[11]') && variable(1)), (mbpm('X', 'tx_mem_ptr[12]') && variable(1)), (mbpm('X', 'tx_mem_ptr[13]') && variable(1)), (mbpm('X', 'tx_mem_ptr[14]') && variable(1)), (mbpm('X', 'tx_mem_ptr[15]') && variable(1)), (mbpm('X', 'tx_mem_ptr[1]') && variable(1)), (mbpm('X', 'tx_mem_ptr[2]') && variable(1)), (mbpm('X', 'tx_mem_ptr[3]') && variable(1)), (mbpm('X', 'tx_mem_ptr[4]') && variable(1)), (mbpm('X', 'tx_mem_ptr[5]') && variable(1)), (mbpm('X', 'tx_mem_ptr[6]') && variable(1)), (mbpm('X', 'tx_mem_ptr[7]') && variable(1)), (mbpm('X', 'tx_mem_ptr[8]') && variable(1)), (mbpm('X', 'tx_mem_ptr[9]') && variable(1))}))})]]>
               </power_up_expression>
-            </power_up>
-            <expression><![CDATA[alt_reduction(alt_or, {((mbpm('X', 'state.S_IDLE') && variable(0))), ((mbpm('1', 'state.S_WRITE_DATA') && variable(1))), ((mbpm('1', 'state.S_WRITE_DATAD') && variable(1))), ((mbpm('1', 'state.S_WRITE_LEN1') && variable(1))), ((mbpm('1', 'state.S_WRITE_LEN1D') && variable(1))), ((mbpm('1', 'state.S_WRITE_LEN2') && variable(1))), ((mbpm('1', 'state.S_WRITE_LEN2D') && variable(1))), (alt_reduction(alt_false, {(mbpm('X', 'tx_data[0]') && variable(0)), (mbpm('X', 'tx_data[1]') && variable(0)), (mbpm('X', 'tx_data[2]') && variable(0)), (mbpm('X', 'tx_data[3]') && variable(0)), (mbpm('X', 'tx_data[4]') && variable(0)), (mbpm('X', 'tx_data[5]') && variable(0)), (mbpm('X', 'tx_data[6]') && variable(0)), (mbpm('X', 'tx_data[7]') && variable(0))})), (alt_reduction(alt_false, {(mbpm('X', 'tx_mem_ptr[0]') && variable(0)), (mbpm('X', 'tx_mem_ptr[10]') && variable(0)), (mbpm('X', 'tx_mem_ptr[11]') && variable(0)), (mbpm('X', 'tx_mem_ptr[12]') && variable(0)), (mbpm('X', 'tx_mem_ptr[13]') && variable(0)), (mbpm('X', 'tx_mem_ptr[14]') && variable(0)), (mbpm('X', 'tx_mem_ptr[15]') && variable(0)), (mbpm('X', 'tx_mem_ptr[1]') && variable(0)), (mbpm('X', 'tx_mem_ptr[2]') && variable(0)), (mbpm('X', 'tx_mem_ptr[3]') && variable(0)), (mbpm('X', 'tx_mem_ptr[4]') && variable(0)), (mbpm('X', 'tx_mem_ptr[5]') && variable(0)), (mbpm('X', 'tx_mem_ptr[6]') && variable(0)), (mbpm('X', 'tx_mem_ptr[7]') && variable(0)), (mbpm('X', 'tx_mem_ptr[8]') && variable(0)), (mbpm('X', 'tx_mem_ptr[9]') && variable(0))}))})]]>
+            </power_up><expression><![CDATA[alt_reduction(alt_or, {((mbpm('X', 'state.S_IDLE') && variable(0))), ((mbpm('1', 'state.S_WRITE_DATA') && variable(1))), ((mbpm('1', 'state.S_WRITE_DATAD') && variable(1))), ((mbpm('1', 'state.S_WRITE_LEN1') && variable(1))), ((mbpm('1', 'state.S_WRITE_LEN1D') && variable(1))), ((mbpm('1', 'state.S_WRITE_LEN2') && variable(1))), ((mbpm('1', 'state.S_WRITE_LEN2D') && variable(1))), (alt_reduction(alt_false, {(mbpm('X', 'tx_data[0]') && variable(0)), (mbpm('X', 'tx_data[1]') && variable(0)), (mbpm('X', 'tx_data[2]') && variable(0)), (mbpm('X', 'tx_data[3]') && variable(0)), (mbpm('X', 'tx_data[4]') && variable(0)), (mbpm('X', 'tx_data[5]') && variable(0)), (mbpm('X', 'tx_data[6]') && variable(0)), (mbpm('X', 'tx_data[7]') && variable(0))})), (alt_reduction(alt_false, {(mbpm('X', 'tx_mem_ptr[0]') && variable(0)), (mbpm('X', 'tx_mem_ptr[10]') && variable(0)), (mbpm('X', 'tx_mem_ptr[11]') && variable(0)), (mbpm('X', 'tx_mem_ptr[12]') && variable(0)), (mbpm('X', 'tx_mem_ptr[13]') && variable(0)), (mbpm('X', 'tx_mem_ptr[14]') && variable(0)), (mbpm('X', 'tx_mem_ptr[15]') && variable(0)), (mbpm('X', 'tx_mem_ptr[1]') && variable(0)), (mbpm('X', 'tx_mem_ptr[2]') && variable(0)), (mbpm('X', 'tx_mem_ptr[3]') && variable(0)), (mbpm('X', 'tx_mem_ptr[4]') && variable(0)), (mbpm('X', 'tx_mem_ptr[5]') && variable(0)), (mbpm('X', 'tx_mem_ptr[6]') && variable(0)), (mbpm('X', 'tx_mem_ptr[7]') && variable(0)), (mbpm('X', 'tx_mem_ptr[8]') && variable(0)), (mbpm('X', 'tx_mem_ptr[9]') && variable(0))}))})]]>
             </expression>
             <op_node/>
           </level>
@@ -276,6 +263,17 @@
         </log>
       </trigger>
     </signal_set>
+    <position_info>
+      <single attribute="active tab" value="0"/>
+      <single attribute="data horizontal scroll position" value="182"/>
+      <single attribute="data vertical scroll position" value="0"/>
+      <single attribute="setup horizontal scroll position" value="0"/>
+      <single attribute="setup vertical scroll position" value="0"/>
+      <single attribute="zoom level denominator" value="4"/>
+      <single attribute="zoom level numerator" value="1"/>
+      <single attribute="zoom offset denominator" value="1"/>
+      <single attribute="zoom offset numerator" value="523776"/>
+    </position_info>
   </instance>
   <global_info>
     <single attribute="active instance" value="0"/>

@@ -60,7 +60,7 @@ module egcoding(
 
 
 	// Input data array.
-	reg[7:0] rx_mem[255:0];
+	reg[7:0] rx_mem[127:0];
 	// Length of rx data array.
 	reg[15:0] rx_mem_len;
 	// Index of rx data array, used for r/w.
@@ -79,7 +79,8 @@ module egcoding(
 
 
 	// Output data as bit array.
-	reg tx_mem[2047:0];
+	// Data is written from index 0 up; MSB of encoded data written first.
+	reg tx_mem[1023:0];
 	reg[15:0] tx_mem_len;
 	reg[15:0] tx_mem_ptr;
 
@@ -103,6 +104,8 @@ module egcoding(
 	reg[7:0] curr_value;
 	// Number of bits in current value to compress.
 	reg[3:0] curr_size;
+	// Misc iteration variable.
+	integer i;
 
 
 	// Idle. Waiting for rx transmission to start.
@@ -116,19 +119,19 @@ module egcoding(
 	// Extract value and value size.
 	localparam S_COMP_START = 4'd3;
 	// Write compressed value to memory.
-	localparam S_COMP_WRITE = 4'd5;
+	localparam S_COMP_WRITE = 4'd4;
 	// Done with compression, waiting for TX status byte.
-	localparam S_COMP_DONE = 4'd6;
+	localparam S_COMP_DONE = 4'd5;
 
 	// TX states are more numerous because need to wait for tx module each byte.
 	// Write two length bytes.
-	localparam S_WRITE_LEN1 = 4'd7;
-	localparam S_WRITE_LEN1D = 4'd8;
-	localparam S_WRITE_LEN2 = 4'd9;
-	localparam S_WRITE_LEN2D = 4'd10;
+	localparam S_WRITE_LEN1 = 4'd6;
+	localparam S_WRITE_LEN1D = 4'd7;
+	localparam S_WRITE_LEN2 = 4'd8;
+	localparam S_WRITE_LEN2D = 4'd9;
 	// Writing data bytes.
-	localparam S_WRITE_DATA = 4'd11;
-	localparam S_WRITE_DATAD = 4'd12;
+	localparam S_WRITE_DATA = 4'd10;
+	localparam S_WRITE_DATAD = 4'd11;
 
 	reg[3:0] state;
 
@@ -138,7 +141,7 @@ module egcoding(
 	end
 	
 	initial begin
-		$readmemh("num_bits.hex", num_bits_lut);
+		$readmemh("num_bits.hex", size_lut);
 	end
 
 	// Main FSM.
@@ -197,10 +200,17 @@ module egcoding(
 				state <= S_COMP_WRITE;
 			end
 		end else if (state == S_COMP_WRITE) begin
-			for (i = 0; i < curr_size; i = i + 1) begin
-				tx_mem[2047 - tx_mem_ptr + i] <= curr_value[curr_size - i - 1];
+			// Write zeros and data simultaneously.
+			// Zero: Index ptr to ptr+size-2, inclusive. size-1 bits total.
+			// Data: Index ptr+size-1 to ptr+size+size-2, inclusive. size bits total.
+			// Overall, 2size-1 bits total.
+			for (i = 0; i < 8; i = i + 1) begin
+				if (i < curr_size - 1)
+					tx_mem[tx_mem_ptr + i] <= 0;
+				if (i < curr_size)
+					tx_mem[tx_mem_ptr + curr_size - 1 + i] <= curr_value[curr_size - i - 1];
 			end
-			tx_mem_ptr <= tx_mem_ptr + curr_size;
+			tx_mem_ptr <= tx_mem_ptr + curr_size + curr_size;
 			rx_mem_ptr <= rx_mem_ptr + 1;
 			state <= S_COMP_START;
 		end else if (state == S_COMP_DONE) begin
@@ -229,14 +239,16 @@ module egcoding(
 				state <= S_WRITE_DATA;
 
 		end else if (state == S_WRITE_DATA) begin
-			tx_data <= tx_mem[tx_mem_ptr];
-			tx_mem_ptr <= tx_mem_ptr + 1;
+			for (i = 0; i < 8; i = i + 1) begin
+				tx_data[7 - i] <= tx_mem[tx_mem_ptr + i];
+			end
+			tx_mem_ptr <= tx_mem_ptr + 8;
 			tx_start <= 1;
 			state <= S_WRITE_DATAD;
 		end else if (state == S_WRITE_DATAD) begin
 			tx_start <= 0;
 			if (tx_done) begin
-				if (tx_mem_ptr == tx_mem_len)
+				if (tx_mem_ptr >= tx_mem_len)
 					state <= S_IDLE;
 				else
 					state <= S_WRITE_DATA;

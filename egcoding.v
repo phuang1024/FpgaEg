@@ -80,9 +80,13 @@ module egcoding(
 
 	// Output data as bit array.
 	// Data is written from index 0 up; MSB of encoded data written first.
-	reg tx_mem[1023:0];
+	reg tx_mem[2047:0];
 	reg[15:0] tx_mem_len;
 	reg[15:0] tx_mem_ptr;
+	// Write port.
+	reg tx_mem_we;
+	reg[15:0] tx_mem_addr;
+	reg[15:0] tx_mem_data;
 
 	// TX module.
 	reg[7:0] tx_data;
@@ -143,6 +147,15 @@ module egcoding(
 	initial begin
 		$readmemh("num_bits.hex", size_lut);
 	end
+	
+	// Write port for tx_mem
+	always @(posedge clk) begin
+		if (tx_mem_we) begin
+			for (i = 0; i < 16; i = i + 1) begin
+				tx_mem[tx_mem_addr + i] <= tx_mem_data[i];
+			end
+		end
+	end
 
 	// Main FSM.
 	always @(posedge clk) begin
@@ -185,6 +198,7 @@ module egcoding(
 
 		// Compression.
 		end else if (state == S_COMP_START) begin
+			tx_mem_we <= 0;
 			// Check if done.
 			if (rx_mem_ptr == rx_mem_len) begin
 				// Send a 0 byte next cycle via tx.
@@ -200,20 +214,22 @@ module egcoding(
 				state <= S_COMP_WRITE;
 			end
 		end else if (state == S_COMP_WRITE) begin
+			tx_mem_we <= 1;
 			// Write zeros and data simultaneously.
 			// Zero: Index ptr to ptr+size-2, inclusive. size-1 bits total.
 			// Data: Index ptr+size-1 to ptr+size+size-2, inclusive. size bits total.
 			// Overall, 2size-1 bits total.
 			for (i = 0; i < 8; i = i + 1) begin
 				if (i < curr_size - 1)
-					tx_mem[tx_mem_ptr + i] <= 0;
+					tx_mem_data[i] <= 0;
 				if (i < curr_size)
-					tx_mem[tx_mem_ptr + curr_size - 1 + i] <= curr_value[curr_size - i - 1];
+					tx_mem_data[curr_size - 1 + i] <= curr_value[curr_size - i - 1];
 			end
 			tx_mem_ptr <= tx_mem_ptr + curr_size + curr_size;
 			rx_mem_ptr <= rx_mem_ptr + 1;
 			state <= S_COMP_START;
 		end else if (state == S_COMP_DONE) begin
+			tx_mem_we <= 0;
 			// Wait until done sending 0 byte.
 			tx_start <= 0;
 			if (tx_done)

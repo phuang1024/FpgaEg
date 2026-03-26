@@ -40,6 +40,7 @@ module egcoding(
 	input wire clk,
 	input wire rst,
 	output reg clk_debug,
+	output reg flag_debug,
 
 	input wire rx,
 	output reg tx
@@ -80,7 +81,7 @@ module egcoding(
 
 	// Output data as bit array.
 	// Data is written from index 0 up; MSB of encoded data written first.
-	reg tx_mem[2047:0];
+	reg tx_mem[255:0];
 	reg[15:0] tx_mem_len;
 	reg[15:0] tx_mem_ptr;
 	// Write port.
@@ -142,6 +143,7 @@ module egcoding(
 
 	initial begin
 		state <= S_IDLE;
+		flag_debug <= 0;
 	end
 	
 	initial begin
@@ -198,6 +200,7 @@ module egcoding(
 
 		// Compression.
 		end else if (state == S_COMP_START) begin
+			flag_debug <= 1;
 			tx_mem_we <= 0;
 			// Check if done.
 			if (rx_mem_ptr == rx_mem_len) begin
@@ -209,12 +212,14 @@ module egcoding(
 				state <= S_COMP_DONE;
 
 			end else begin
-				curr_value <= rx_mem[rx_mem_ptr];
-				curr_size <= size_lut[rx_mem[rx_mem_ptr]];
+				// Add one, part of EG coding algorithm.
+				curr_value <= rx_mem[rx_mem_ptr] + 1;
+				curr_size <= size_lut[rx_mem[rx_mem_ptr] + 1];
 				state <= S_COMP_WRITE;
 			end
 		end else if (state == S_COMP_WRITE) begin
 			tx_mem_we <= 1;
+			tx_mem_addr <= tx_mem_ptr;
 			// Write zeros and data simultaneously.
 			// Zero: Index ptr to ptr+size-2, inclusive. size-1 bits total.
 			// Data: Index ptr+size-1 to ptr+size+size-2, inclusive. size bits total.
@@ -225,7 +230,7 @@ module egcoding(
 				if (i < curr_size)
 					tx_mem_data[curr_size - 1 + i] <= curr_value[curr_size - i - 1];
 			end
-			tx_mem_ptr <= tx_mem_ptr + curr_size + curr_size;
+			tx_mem_ptr <= tx_mem_ptr + curr_size + curr_size - 1;
 			rx_mem_ptr <= rx_mem_ptr + 1;
 			state <= S_COMP_START;
 		end else if (state == S_COMP_DONE) begin

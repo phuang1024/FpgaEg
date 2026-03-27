@@ -76,7 +76,10 @@ module egcoding(
 	reg[15:0] rx_addr;
 	reg[7:0] rx_din;
 	wire[7:0] rx_dout;
-	memory rx_mem(
+	memory#(
+		.DATA_WIDTH(8),
+		.ADDR_WIDTH(8)
+	) rx_mem(
 		.clk(clk),
 		.we(rx_we),
 		.addr(rx_addr),
@@ -85,6 +88,7 @@ module egcoding(
 	);
 
 	// Recv array FSM module.
+	wire rmod_done;
 	wire rmod_we;
 	wire[15:0] rmod_addr;
 	wire[7:0] rmod_din;
@@ -92,6 +96,7 @@ module egcoding(
 	recv_array recv_mod(
 		.clk(clk),
 		.start(recv_start),
+		.done(rmod_done),
 		.rx_valid(rx_valid),
 		.rx_data(rx_data),
 		.mem_we(rmod_we),
@@ -101,11 +106,36 @@ module egcoding(
 	);
 
 
+	// FSM
+	localparam S_IDLE = 2'd0;
+	localparam S_RECV = 2'd1;
+	localparam S_SEND = 2'd2;
+	localparam S_COMPRESS = 2'd3;
+
+	reg[1:0] state;
+
+
+	initial begin
+		state <= S_IDLE;
+	end
+
+	always @(posedge clk) begin
+		if (state == S_IDLE) begin
+		end else if (state == S_RECV) begin
+		end else if (state == S_COMPRESS) begin
+		end else if (state == S_SEND) begin
+		end
+	end
+	
+	
+	
+	
+	
 	
 	
 	
 	///////////////////////TODO!!!!!
-
+/*
 	// Output data as bit array.
 	// Data is written from index 0 up; MSB of encoded data written first.
 	reg tx_mem[255:0];
@@ -173,9 +203,6 @@ module egcoding(
 		flag_debug <= 0;
 	end
 	
-	initial begin
-		$readmemh("num_bits.hex", size_lut);
-	end
 	
 	// Write port for tx_mem
 	always @(posedge clk) begin
@@ -302,5 +329,5 @@ module egcoding(
 					state <= S_WRITE_DATA;
 			end
 		end
-	end
+	end*/
 endmodule

@@ -12,10 +12,11 @@ module recv_array(
 
 	// Flag to begin reading array.
 	input wire start,
+	output reg done,
 
 	// Wires from rx module.
 	input wire rx_valid,
-	input wire[7:0] rx_data;
+	input wire[7:0] rx_data,
 
 	// Wires to RAM.
 	output reg mem_we,
@@ -35,11 +36,13 @@ module recv_array(
 
 	reg[1:0] state;
 
+
 	initial begin
 		state <= S_IDLE;
 	end
 
 	always @(posedge clk) begin
+		done <= 0;
 		mem_we <= 0;
 
 		if (state == S_IDLE) begin
@@ -69,6 +72,7 @@ module recv_array(
 			end
 			// Done reading.
 			if (ptr == len) begin
+				done <= 1;
 				state <= S_IDLE;
 			end
 		end

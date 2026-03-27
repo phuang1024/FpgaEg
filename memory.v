@@ -1,6 +1,6 @@
 module memory#(
-    parameter DATA_WIDTH = 8,
-    parameter ADDR_WIDTH = 8
+    parameter DATA_WIDTH,
+    parameter ADDR_WIDTH
 )(
     input wire clk,
     input wire we,

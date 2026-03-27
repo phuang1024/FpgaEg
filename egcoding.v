@@ -39,6 +39,7 @@
 module egcoding(
 	input wire clk,
 	input wire rst,
+	// Misc debug trigger signals.
 	output reg clk_debug,
 	output reg flag_debug,
 
@@ -54,18 +55,10 @@ module egcoding(
 		clk_debug_counter <= clk_debug_counter + 1;
 	end
 
-
 	// Turn rst into a pulse.
 	reg rst_pulse;
 	btn_pulse rst_pulse_mod(clk, rst, rst_pulse);
 
-
-	// Input data array.
-	reg[7:0] rx_mem[127:0];
-	// Length of rx data array.
-	reg[15:0] rx_mem_len;
-	// Index of rx data array, used for r/w.
-	reg[15:0] rx_mem_ptr;
 
 	// RX module.
 	wire[7:0] rx_data;
@@ -78,6 +71,40 @@ module egcoding(
 		.data_valid(rx_valid)
 	);
 
+	// Recv memory.
+	reg rx_we;
+	reg[15:0] rx_addr;
+	reg[7:0] rx_din;
+	wire[7:0] rx_dout;
+	memory rx_mem(
+		.clk(clk),
+		.we(rx_we),
+		.addr(rx_addr),
+		.din(rx_din),
+		.dout(rx_dout)
+	);
+
+	// Recv array FSM module.
+	wire rmod_we;
+	wire[15:0] rmod_addr;
+	wire[7:0] rmod_din;
+	wire[15:0] rx_len;
+	recv_array recv_mod(
+		.clk(clk),
+		.start(recv_start),
+		.rx_valid(rx_valid),
+		.rx_data(rx_data),
+		.mem_we(rmod_we),
+		.mem_addr(rmod_addr),
+		.mem_data(rmod_din),
+		.len(rx_len)
+	);
+
+
+	
+	
+	
+	///////////////////////TODO!!!!!
 
 	// Output data as bit array.
 	// Data is written from index 0 up; MSB of encoded data written first.

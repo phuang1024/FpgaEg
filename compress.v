@@ -19,11 +19,11 @@ module compress(
 	output reg done,
 
 	output reg[15:0] rmem_addr,
-	input wire[7:0] rmem_data,
+	input wire[7:0] rmem_dout,
 
 	output reg tmem_we,
 	output reg[15:0] tmem_addr,
-	output reg[7:0] tmem_data
+	output reg[7:0] tmem_din
 );
 	// Index i is num of bits of i.
 	reg[3:0] size_lut[255:0];

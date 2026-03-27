@@ -54,13 +54,16 @@ module egcoding(
 			clk_debug <= 1;
 		clk_debug_counter <= clk_debug_counter + 1;
 	end
+	initial begin
+		flag_debug <= 0;
+	end
 
 	// Turn rst into a pulse.
 	reg rst_pulse;
 	btn_pulse rst_pulse_mod(clk, rst, rst_pulse);
 
 
-	// RX module.
+	// RX module. "rx" means the UART receiver and/or the RAM.
 	wire[7:0] rx_data;
 	wire rx_valid;
 	uart_rx rx_module(
@@ -86,27 +89,66 @@ module egcoding(
 		.din(rx_din),
 		.dout(rx_dout)
 	);
+	// Length of received array. Copied from "rmod_len".
+	wire[15:0] rx_len;
 
-	// Recv array FSM module.
+	// recv_array FSM submodule. "rmod" means recv module.
+	reg rmod_start;
 	wire rmod_done;
 	wire rmod_we;
 	wire[15:0] rmod_addr;
 	wire[7:0] rmod_din;
-	wire[15:0] rx_len;
+	wire[15:0] rmod_len;
 	recv_array recv_mod(
 		.clk(clk),
-		.start(recv_start),
+		.start(rmod_start),
 		.done(rmod_done),
 		.rx_valid(rx_valid),
 		.rx_data(rx_data),
 		.mem_we(rmod_we),
 		.mem_addr(rmod_addr),
 		.mem_data(rmod_din),
-		.len(rx_len)
+		.len(rmod_len)
 	);
 
 
-	// FSM
+	// Send memory. "tx" means the UART transmitter and the RAM.
+	reg tx_we;
+	reg[15:0] tx_addr;
+	reg[7:0] tx_din;
+	wire[7:0] tx_dout;
+	memory#(
+		.DATA_WIDTH(16),
+		.ADDR_WIDTH(4)
+	) tx_mem(
+		.clk(clk),
+		.we(tx_we),
+		.addr(tx_addr),
+		.din(tx_din),
+		.dout(tx_dout)
+	);
+
+
+	// Compressor module. "comp" means compressor.
+	reg comp_start;
+	wire comp_done;
+	wire[7:0] comp_r_addr;
+	wire comp_t_we;
+	wire[3:0] comp_t_addr;
+	wire[15:0] comp_t_din;
+	compress compress_mod(
+		.clk(clk),
+		.start(comp_start),
+		.done(comp_done),
+		.rmem_addr(comp_r_addr),
+		.rmem_dout(rx_dout),
+		.tmem_we(comp_t_we),
+		.tmem_addr(comp_t_addr),
+		.tmem_din(comp_t_din)
+	);
+
+
+	// FSM states.
 	localparam S_IDLE = 2'd0;
 	localparam S_RECV = 2'd1;
 	localparam S_SEND = 2'd2;
@@ -119,16 +161,53 @@ module egcoding(
 		state <= S_IDLE;
 	end
 
+	// Main FSM.
 	always @(posedge clk) begin
+		rmod_start <= 0;
+		comp_start <= 0;
+
 		if (state == S_IDLE) begin
+			// Wait for command byte.
+			if (rx_valid) begin
+				if (rx_data == 0) begin
+					state <= S_RECV;
+					rmod_start <= 1;
+				end
+			end
+
 		end else if (state == S_RECV) begin
+			flag_debug <= 1;
+			// Wait until recv module done.
+			if (rmod_done) begin
+				state <= S_IDLE;
+				rx_len <= rmod_len;
+			end
+
 		end else if (state == S_COMPRESS) begin
+
 		end else if (state == S_SEND) begin
 		end
 	end
-	
-	
-	
+
+	// Memory signal mux.
+	always @(*) begin
+		rx_we = 0;
+		rx_addr = 0;
+		rx_din = 0;
+		tx_we = 0;
+		tx_addr = 0;
+		tx_din = 0;
+		if (state == S_RECV) begin
+			rx_we = rmod_we;
+			rx_addr = rmod_addr;
+			rx_din = rmod_din;
+		end else if (state == S_COMPRESS) begin
+			rx_addr = comp_r_addr;
+			tx_we = comp_t_we;
+			tx_addr = comp_t_addr;
+			tx_din = comp_t_din;
+		end
+	end
 	
 	
 	

@@ -63,7 +63,7 @@ module egcoding(
 	btn_pulse rst_pulse_mod(clk, rst, rst_pulse);
 
 
-	// RX module. "rx" means the UART receiver and/or the RAM.
+	// RX module. "rx" means the UART receiver.
 	wire[7:0] rx_data;
 	wire rx_valid;
 	uart_rx rx_module(
@@ -74,23 +74,23 @@ module egcoding(
 		.data_valid(rx_valid)
 	);
 
-	// Recv memory.
-	reg rx_we;
-	reg[15:0] rx_addr;
-	reg[7:0] rx_din;
-	wire[7:0] rx_dout;
+	// Recv memory. "rmem" means recv memory.
+	reg rmem_we;
+	reg[15:0] rmem_addr;
+	reg[7:0] rmem_din;
+	wire[7:0] rmem_dout;
 	memory#(
 		.DATA_WIDTH(8),
 		.ADDR_WIDTH(8)
-	) rx_mem(
+	) rmem(
 		.clk(clk),
-		.we(rx_we),
-		.addr(rx_addr),
-		.din(rx_din),
-		.dout(rx_dout)
+		.we(rmem_we),
+		.addr(rmem_addr),
+		.din(rmem_din),
+		.dout(rmem_dout)
 	);
-	// Length of received array. Copied from "rmod_len".
-	wire[15:0] rx_len;
+	// Length of received array.
+	reg[15:0] rmem_len;
 
 	// recv_array FSM submodule. "rmod" means recv module.
 	reg rmod_start;
@@ -112,20 +112,33 @@ module egcoding(
 	);
 
 
-	// Send memory. "tx" means the UART transmitter and the RAM.
-	reg tx_we;
-	reg[15:0] tx_addr;
-	reg[7:0] tx_din;
-	wire[7:0] tx_dout;
+	// TX module. "tx" means UART transmitter.
+	reg[7:0] tx_data;
+	reg tx_start;
+	wire tx_done;
+	uart_tx tx_module(
+		.clk(clk),
+		.rst(rst_pulse),
+		.data(tx_data),
+		.start(tx_start),
+		.tx(tx),
+		.done(tx_done)
+	);
+
+	// Send memory. "tmem" means transmit memory.
+	reg tmem_we;
+	reg[15:0] tmem_addr;
+	reg[7:0] tmem_din;
+	wire[7:0] tmem_dout;
 	memory#(
 		.DATA_WIDTH(16),
 		.ADDR_WIDTH(4)
-	) tx_mem(
+	) tmem(
 		.clk(clk),
-		.we(tx_we),
-		.addr(tx_addr),
-		.din(tx_din),
-		.dout(tx_dout)
+		.we(tmem_we),
+		.addr(tmem_addr),
+		.din(tmem_din),
+		.dout(tmem_dout)
 	);
 
 
@@ -142,6 +155,7 @@ module egcoding(
 		.done(comp_done),
 		.rmem_addr(comp_r_addr),
 		.rmem_dout(rx_dout),
+		.rmem_len(rmem_len),
 		.tmem_we(comp_t_we),
 		.tmem_addr(comp_t_addr),
 		.tmem_din(comp_t_din)
@@ -149,12 +163,16 @@ module egcoding(
 
 
 	// FSM states.
-	localparam S_IDLE = 2'd0;
-	localparam S_RECV = 2'd1;
-	localparam S_SEND = 2'd2;
-	localparam S_COMPRESS = 2'd3;
+	// IDLE, RECV, SEND, COMP: Waiting for respective submodules.
+	localparam S_IDLE = 3'd0;
+	localparam S_RECV = 3'd1;
+	localparam S_SEND = 3'd2;
+	localparam S_COMP = 3'd3;
+	// Wait for TX to finish sending; then return to "state_ret" state.
+	localparam S_TX_WAIT = 3'd4;
 
-	reg[1:0] state;
+	reg[2:0] state;
+	reg[2:0] state_ret;
 
 
 	initial begin
@@ -165,6 +183,7 @@ module egcoding(
 	always @(posedge clk) begin
 		rmod_start <= 0;
 		comp_start <= 0;
+		tx_start <= 0;
 
 		if (state == S_IDLE) begin
 			// Wait for command byte.
@@ -172,241 +191,54 @@ module egcoding(
 				if (rx_data == 0) begin
 					state <= S_RECV;
 					rmod_start <= 1;
+				end else if (rx_data == 1) begin
+					state <= S_COMP;
+					comp_start <= 1;
 				end
 			end
 
 		end else if (state == S_RECV) begin
-			flag_debug <= 1;
 			// Wait until recv module done.
 			if (rmod_done) begin
 				state <= S_IDLE;
-				rx_len <= rmod_len;
+				rmem_len <= rmod_len;
 			end
 
-		end else if (state == S_COMPRESS) begin
-
 		end else if (state == S_SEND) begin
+
+		end else if (state == S_COMP) begin
+			flag_debug <= 1;
+			if (comp_done) begin
+				state <= S_TX_WAIT;
+				state_ret <= S_IDLE;
+				tx_data <= 0;
+				tx_start <= 1;
+			end
+
+		end else if (state == S_TX_WAIT) begin
+			if (tx_done) begin
+				state <= state_ret;
+			end
 		end
 	end
 
 	// Memory signal mux.
 	always @(*) begin
-		rx_we = 0;
-		rx_addr = 0;
-		rx_din = 0;
-		tx_we = 0;
-		tx_addr = 0;
-		tx_din = 0;
+		rmem_we = 0;
+		rmem_addr = 0;
+		rmem_din = 0;
+		tmem_we = 0;
+		tmem_addr = 0;
+		tmem_din = 0;
 		if (state == S_RECV) begin
-			rx_we = rmod_we;
-			rx_addr = rmod_addr;
-			rx_din = rmod_din;
-		end else if (state == S_COMPRESS) begin
-			rx_addr = comp_r_addr;
-			tx_we = comp_t_we;
-			tx_addr = comp_t_addr;
-			tx_din = comp_t_din;
+			rmem_we = rmod_we;
+			rmem_addr = rmod_addr;
+			rmem_din = rmod_din;
+		end else if (state == S_COMP) begin
+			rmem_addr = comp_r_addr;
+			tmem_we = comp_t_we;
+			tmem_addr = comp_t_addr;
+			tmem_din = comp_t_din;
 		end
 	end
-	
-	
-	
-	
-	
-	///////////////////////TODO!!!!!
-/*
-	// Output data as bit array.
-	// Data is written from index 0 up; MSB of encoded data written first.
-	reg tx_mem[255:0];
-	reg[15:0] tx_mem_len;
-	reg[15:0] tx_mem_ptr;
-	// Write port.
-	reg tx_mem_we;
-	reg[15:0] tx_mem_addr;
-	reg[15:0] tx_mem_data;
-
-	// TX module.
-	reg[7:0] tx_data;
-	reg tx_start;
-	wire tx_done;
-	uart_tx tx_module(
-		.clk(clk),
-		.rst(rst_pulse),
-		.data(tx_data),
-		.start(tx_start),
-		.tx(tx),
-		.done(tx_done)
-	);
-
-
-	// Index i is num of bits of i.
-	reg[3:0] size_lut[255:0];
-	// Current value to compress.
-	reg[7:0] curr_value;
-	// Number of bits in current value to compress.
-	reg[3:0] curr_size;
-	// Misc iteration variable.
-	integer i;
-
-
-	// Idle. Waiting for rx transmission to start.
-	localparam S_IDLE = 4'd0;
-
-	// Reading length bytes. Uses rx_mem_ptr= 0 or 1 as indicator.
-	localparam S_READ_LEN = 4'd1;
-	// Reading data bytes.
-	localparam S_READ_DATA = 4'd2;
-
-	// Extract value and value size.
-	localparam S_COMP_START = 4'd3;
-	// Write compressed value to memory.
-	localparam S_COMP_WRITE = 4'd4;
-	// Done with compression, waiting for TX status byte.
-	localparam S_COMP_DONE = 4'd5;
-
-	// TX states are more numerous because need to wait for tx module each byte.
-	// Write two length bytes.
-	localparam S_WRITE_LEN1 = 4'd6;
-	localparam S_WRITE_LEN1D = 4'd7;
-	localparam S_WRITE_LEN2 = 4'd8;
-	localparam S_WRITE_LEN2D = 4'd9;
-	// Writing data bytes.
-	localparam S_WRITE_DATA = 4'd10;
-	localparam S_WRITE_DATAD = 4'd11;
-
-	reg[3:0] state;
-
-
-	initial begin
-		state <= S_IDLE;
-		flag_debug <= 0;
-	end
-	
-	
-	// Write port for tx_mem
-	always @(posedge clk) begin
-		if (tx_mem_we) begin
-			for (i = 0; i < 16; i = i + 1) begin
-				tx_mem[tx_mem_addr + i] <= tx_mem_data[i];
-			end
-		end
-	end
-
-	// Main FSM.
-	always @(posedge clk) begin
-		// Recv command byte.
-		if (state == S_IDLE) begin
-			if (rx_valid) begin
-				if (rx_data == 0) begin
-					state <= S_READ_LEN;
-					rx_mem_len <= 0;
-					rx_mem_ptr <= 0;
-				end else if (rx_data == 1) begin
-					state <= S_COMP_START;
-					rx_mem_ptr <= 0;
-					tx_mem_ptr <= 0;
-				end else if (rx_data == 2) begin
-					state <= S_WRITE_LEN1;
-				end
-			end
-
-		// Read data.
-		end else if (state == S_READ_LEN) begin
-			if (rx_valid) begin
-				if (rx_mem_ptr == 0) begin
-					rx_mem_len[7:0] = rx_data;
-					rx_mem_ptr = 1;
-				end else if (rx_mem_ptr == 1) begin
-					rx_mem_len[15:8] = rx_data;
-					state <= S_READ_DATA;
-					rx_mem_ptr = 0;
-				end
-			end
-		end else if (state == S_READ_DATA) begin
-			if (rx_valid) begin
-				rx_mem[rx_mem_ptr] <= rx_data;
-				rx_mem_ptr <= rx_mem_ptr + 1;
-			end
-			if (rx_mem_ptr == rx_mem_len) begin
-				state <= S_IDLE;
-			end
-
-		// Compression.
-		end else if (state == S_COMP_START) begin
-			flag_debug <= 1;
-			tx_mem_we <= 0;
-			// Check if done.
-			if (rx_mem_ptr == rx_mem_len) begin
-				// Send a 0 byte next cycle via tx.
-				tx_data <= 0;
-				tx_start <= 1;
-
-				tx_mem_len <= tx_mem_ptr;
-				state <= S_COMP_DONE;
-
-			end else begin
-				// Add one, part of EG coding algorithm.
-				curr_value <= rx_mem[rx_mem_ptr] + 1;
-				curr_size <= size_lut[rx_mem[rx_mem_ptr] + 1];
-				state <= S_COMP_WRITE;
-			end
-		end else if (state == S_COMP_WRITE) begin
-			tx_mem_we <= 1;
-			tx_mem_addr <= tx_mem_ptr;
-			// Write zeros and data simultaneously.
-			// Zero: Index ptr to ptr+size-2, inclusive. size-1 bits total.
-			// Data: Index ptr+size-1 to ptr+size+size-2, inclusive. size bits total.
-			// Overall, 2size-1 bits total.
-			for (i = 0; i < 8; i = i + 1) begin
-				if (i < curr_size - 1)
-					tx_mem_data[i] <= 0;
-				if (i < curr_size)
-					tx_mem_data[curr_size - 1 + i] <= curr_value[curr_size - i - 1];
-			end
-			tx_mem_ptr <= tx_mem_ptr + curr_size + curr_size - 1;
-			rx_mem_ptr <= rx_mem_ptr + 1;
-			state <= S_COMP_START;
-		end else if (state == S_COMP_DONE) begin
-			tx_mem_we <= 0;
-			// Wait until done sending 0 byte.
-			tx_start <= 0;
-			if (tx_done)
-				state <= S_IDLE;
-
-		// Write result.
-		end else if (state == S_WRITE_LEN1) begin
-			tx_data <= tx_mem_len[7:0];
-			tx_start <= 1;
-			state <= S_WRITE_LEN1D;
-		end else if (state == S_WRITE_LEN1D) begin
-			tx_start <= 0;
-			if (tx_done)
-				state <= S_WRITE_LEN2;
-		end else if (state == S_WRITE_LEN2) begin
-			tx_data <= tx_mem_len[15:8];
-			tx_start <= 1;
-			state <= S_WRITE_LEN2D;
-		end else if (state == S_WRITE_LEN2D) begin
-			tx_start <= 0;
-			tx_mem_ptr <= 0;
-			if (tx_done)
-				state <= S_WRITE_DATA;
-
-		end else if (state == S_WRITE_DATA) begin
-			for (i = 0; i < 8; i = i + 1) begin
-				tx_data[7 - i] <= tx_mem[tx_mem_ptr + i];
-			end
-			tx_mem_ptr <= tx_mem_ptr + 8;
-			tx_start <= 1;
-			state <= S_WRITE_DATAD;
-		end else if (state == S_WRITE_DATAD) begin
-			tx_start <= 0;
-			if (tx_done) begin
-				if (tx_mem_ptr >= tx_mem_len)
-					state <= S_IDLE;
-				else
-					state <= S_WRITE_DATA;
-			end
-		end
-	end*/
 endmodule

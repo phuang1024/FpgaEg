@@ -20,6 +20,7 @@ module compress(
 
 	output reg[15:0] rmem_addr,
 	input wire[7:0] rmem_dout,
+	input wire[15:0] rmem_len,
 
 	output reg tmem_we,
 	output reg[15:0] tmem_addr,
@@ -28,7 +29,11 @@ module compress(
 	// Index i is num of bits of i.
 	reg[3:0] size_lut[255:0];
 
+	reg[15:0] in_ptr;
+	reg[15:0] out_ptr;
+
 	localparam S_IDLE = 2'd0;
+	localparam S_COMP = 2'd1;
 	reg[1:0] state;
 
 
@@ -42,6 +47,29 @@ module compress(
 		tmem_we <= 0;
 
 		if (state == S_IDLE) begin
+			if (start) begin
+				state <= S_COMP;
+			end
+
+			// Init vars.
+			in_ptr <= 0;
+			out_ptr <= 0;
+
+		end else if (state == S_COMP) begin
+			// TODO dummy copy
+			// TODO not pipelined correctly
+			if (in_ptr >= rmem_len) begin
+				done <= 1;
+				state <= S_IDLE;
+			end else begin
+				rmem_addr <= in_ptr;
+				tmem_we <= 1;
+				tmem_addr <= out_ptr;
+				tmem_din <= rmem_dout;
+
+				in_ptr <= in_ptr + 1;
+				out_ptr <= out_ptr + 1;
+			end
 		end
 	end
 endmodule

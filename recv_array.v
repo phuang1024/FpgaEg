@@ -54,10 +54,10 @@ module recv_array(
 			// Read length: ptr has value either 0 or 1 to keep track.
 			if (rx_valid) begin
 				if (ptr == 0) begin
-					len[7:0] = rx_data;
+					len[7:0] <= rx_data;
 					ptr = 1;
 				end else if (ptr == 1) begin
-					len[15:8] = rx_data;
+					len[15:8] <= rx_data;
 					state <= S_DATA;
 					ptr = 0;
 				end

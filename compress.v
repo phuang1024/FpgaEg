@@ -24,7 +24,10 @@ module compress(
 
 	output reg tmem_we,
 	output reg[15:0] tmem_addr,
-	output reg[7:0] tmem_din
+	output reg[7:0] tmem_din,
+
+	// Length as output variable.
+	output reg[15:0] len
 );
 	// Index i is num of bits of i.
 	reg[3:0] size_lut[255:0];
@@ -61,6 +64,7 @@ module compress(
 			if (in_ptr >= rmem_len) begin
 				done <= 1;
 				state <= S_IDLE;
+				len <= out_ptr;
 			end else begin
 				rmem_addr <= in_ptr;
 				tmem_we <= 1;

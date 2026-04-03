@@ -124,6 +124,8 @@ module egcoding(
 		.tx(tx),
 		.done(tx_done)
 	);
+	// Length of tmem data.
+	reg[15:0] tmem_len;
 
 	// Send memory. "tmem" means transmit memory.
 	reg tmem_we;
@@ -141,6 +143,24 @@ module egcoding(
 		.dout(tmem_dout)
 	);
 
+	// send_array submodule. "tmod" means transmit module.
+	reg tmod_start;
+	wire tmod_done;
+	wire tmod_tx_start;
+	wire[7:0] tmod_tx_data;
+	wire[15:0] tmod_addr;
+	send_array transmit_mod(
+		.clk(clk),
+		.start(tmod_start),
+		.done(tmod_done),
+		.tx_start(tmod_tx_start),
+		.tx_data(tmod_tx_data),
+		.tx_done(tx_done),
+		.mem_addr(tmod_addr),
+		.mem_data(tmem_dout),
+		.len(tmem_len)
+	);
+
 
 	// Compressor module. "comp" means compressor.
 	reg comp_start;
@@ -149,6 +169,7 @@ module egcoding(
 	wire comp_t_we;
 	wire[3:0] comp_t_addr;
 	wire[15:0] comp_t_din;
+	wire[15:0] comp_len;
 	compress compress_mod(
 		.clk(clk),
 		.start(comp_start),
@@ -158,7 +179,8 @@ module egcoding(
 		.rmem_len(rmem_len),
 		.tmem_we(comp_t_we),
 		.tmem_addr(comp_t_addr),
-		.tmem_din(comp_t_din)
+		.tmem_din(comp_t_din),
+		.len(comp_len)
 	);
 
 
@@ -182,6 +204,7 @@ module egcoding(
 	// Main FSM.
 	always @(posedge clk) begin
 		rmod_start <= 0;
+		tmod_start <= 0;
 		comp_start <= 0;
 		tx_start <= 0;
 
@@ -194,6 +217,9 @@ module egcoding(
 				end else if (rx_data == 1) begin
 					state <= S_COMP;
 					comp_start <= 1;
+				end else if (rx_data == 2) begin
+					state <= S_SEND;
+					tmod_start <= 1;
 				end
 			end
 
@@ -205,12 +231,21 @@ module egcoding(
 			end
 
 		end else if (state == S_SEND) begin
+			flag_debug <= 1;
+			tx_start <= tmod_tx_start;
+			tx_data <= tmod_tx_data;
+			if (tmod_done) begin
+				state <= S_IDLE;
+			end
 
 		end else if (state == S_COMP) begin
-			flag_debug <= 1;
 			if (comp_done) begin
 				state <= S_TX_WAIT;
 				state_ret <= S_IDLE;
+
+				tmem_len <= comp_len;
+
+				// Send return byte.
 				tx_data <= 0;
 				tx_start <= 1;
 			end
@@ -234,6 +269,8 @@ module egcoding(
 			rmem_we = rmod_we;
 			rmem_addr = rmod_addr;
 			rmem_din = rmod_din;
+		end else if (state == S_SEND) begin
+			tmem_addr = tmod_addr;
 		end else if (state == S_COMP) begin
 			rmem_addr = comp_r_addr;
 			tmem_we = comp_t_we;

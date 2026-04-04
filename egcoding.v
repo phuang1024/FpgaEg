@@ -134,7 +134,7 @@ module egcoding(
 	wire[7:0] tmem_dout;
 	memory#(
 		.DATA_WIDTH(16),
-		.ADDR_WIDTH(4)
+		.ADDR_WIDTH(7)
 	) tmem(
 		.clk(clk),
 		.we(tmem_we),
@@ -165,9 +165,9 @@ module egcoding(
 	// Compressor module. "comp" means compressor.
 	reg comp_start;
 	wire comp_done;
-	wire[7:0] comp_r_addr;
+	wire[15:0] comp_r_addr;
 	wire comp_t_we;
-	wire[3:0] comp_t_addr;
+	wire[15:0] comp_t_addr;
 	wire[15:0] comp_t_din;
 	wire[15:0] comp_len;
 	compress compress_mod(

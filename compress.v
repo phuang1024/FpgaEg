@@ -6,7 +6,7 @@
 //   and the output memory (tmem), only one write per cycle.
 // When compressing a single uint8, the code word will not exceed 15 bits.
 //   Therefore, we define the word size of the output memory (tmem) to be 16 bits,
-//   so each input value will correspond to at most one word written.
+//   so each value encoded will correspond to at most one word written.
 // We define the small buffer as a 2 word (32 bit) circular buffer.
 //   The EG code word for each input will not necessarily line up byte-wise.
 //   However, when either the first or second word is filled up, we write that to tmem.
@@ -34,6 +34,14 @@ module compress(
 );
 	// Index i is num of bits of i.
 	reg[3:0] size_lut[255:0];
+
+	// 2 word circular buffer.
+	reg[31:0] buffer;
+	// Index pointer (bit) for buffer.
+	reg[4:0] buf_ptr;
+	// Flag to indicate which half of buffer is ready to write:
+	// 0 = none, 1 = buffer[15:0], 2 = buffer[31:16]
+	reg[1:0] buf_ready;
 
 	// Counter for compression. Is 1 index = 2 cycles ahead of out_ptr.
 	reg[15:0] index;
@@ -64,36 +72,52 @@ module compress(
 			// Init vars.
 			index <= 0;
 			out_ptr <= 0;
+			buf_ptr <= 0;
 
 		end else if (state == S_COMP) begin
-			// In this cycle: Set raddr one index ahead.
-			// Set we.
+			// In this cycle:
+			// Perform the EG compression; write to circular buffer.
+			// Set raddr one index ahead.
 
-			rmem_addr <= index;
-			tmem_addr <= out_ptr;
-			tmem_din <= rmem_dout;
-
-			// we lags behind by 1.
-			if (index >= 1 && index < rmem_len + 1) begin
-				tmem_we <= 1;
+			if (index >= 1 && index <= rmem_len) begin
+				// Currently, rmem data is M[index - 1].
+				// TODO test
+				buffer <= rmem_dout;
+				buf_ready <= 1;
 			end
+
+			// Increment rmem's addr.
+			rmem_addr <= index;
 
 			state <= S_WRITE;
 
 		end else if (state == S_WRITE) begin
-			// In this cycle: Increment in and out index.
+			// In this cycle:
+			// If circular buffer word full, copy to tmem's data; and set we.
+			//   Increment both indices.
 
+			// Check if done.
 			if (index >= rmem_len + 1) begin
-				// Check if done.
 				done <= 1;
 				state <= S_IDLE;
 				len <= out_ptr;
 
 			end else begin
-				// Begin incrementing out_ptr 1 index = 2 cycles behind.
-				if (index >= 1 && index < rmem_len + 1) begin
+				if (index >= 1 && index <= rmem_len) begin
+					// Same as above, corresponds to M[index - 1].
+					if (buf_ready == 1)
+						tmem_din <= buffer[15:0];
+					else
+						tmem_din <= buffer[31:16];
+
+					if (buf_ready != 0) begin
+						tmem_we <= 1;
+					end
+
+					tmem_addr <= out_ptr;
 					out_ptr <= out_ptr + 1;
 				end
+
 				index <= index + 1;
 
 				state <= S_COMP;

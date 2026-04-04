@@ -22,15 +22,20 @@ module send_array(
 	// Index of array.
 	reg[15:0] ptr;
 
+	// Misc counter for S_DATA waiting.
+	reg[7:0] counter;
+
 	localparam S_IDLE = 3'd0;
-	// LEN: Sending 2 length bytes.
+	// Sending 2 length bytes.
 	localparam S_LEN = 3'd1;
-	// DATA: Sending data bytes.
+	// Set addr and data. Wait a few cycles.
 	localparam S_DATA = 3'd2;
+	// Signal TX to start.
+	localparam S_SEND = 3'd3;
 	// Set done to 1 for a cycle.
-	localparam S_DONE = 3'd3;
+	localparam S_DONE = 3'd4;
 	// Wait for TX to finish, similar to main module.
-	localparam S_TX_WAIT = 3'd4;
+	localparam S_TX_WAIT = 3'd5;
 
 	reg[2:0] state;
 	reg[2:0] state_ret;
@@ -45,6 +50,7 @@ module send_array(
 		tx_start <= 0;
 
 		if (state == S_IDLE) begin
+			counter <= 0;
 			ptr <= 0;
 			if (start)
 				state <= S_LEN;
@@ -66,19 +72,27 @@ module send_array(
 			end
 
 		end else if (state == S_DATA) begin
+			// Set tx_data = mem[ptr]
 			mem_addr <= ptr;
-			// TODO not pipelined correctly.
 			tx_data <= mem_data;
+
+			counter <= counter + 1;
+			if (counter == 10)
+				state <= S_SEND;
+
+		end else if (state == S_SEND) begin
 			tx_start <= 1;
 			ptr <= ptr + 1;
-			state <= S_TX_WAIT;
 
-			// Done reading.
-			if (ptr == len) begin
+			counter <= 0;
+
+			// Check if done.
+			if (ptr == len - 1) begin
 				state_ret <= S_DONE;
 			end else begin
 				state_ret <= S_DATA;
 			end
+			state <= S_TX_WAIT;
 
 		end else if (state == S_DONE) begin
 			done <= 1;

@@ -12,6 +12,9 @@
 //   However, when either the first or second word is filled up, we write that to tmem.
 //   I.e. write bits [0:15] or [16:31] once the pointer advances past that index.
 
+// Pipelining latency:
+//   Write memory when 1 <= index <= len.
+
 module compress(
 	input wire clk,
 
@@ -32,11 +35,15 @@ module compress(
 	// Index i is num of bits of i.
 	reg[3:0] size_lut[255:0];
 
-	reg[15:0] in_ptr;
+	// Counter for compression. Is 1 index = 2 cycles ahead of out_ptr.
+	reg[15:0] index;
 	reg[15:0] out_ptr;
 
 	localparam S_IDLE = 2'd0;
+	// Perform the word compression alg.
 	localparam S_COMP = 2'd1;
+	// Wait one cycle for tmem to write.
+	localparam S_WRITE = 2'd2;
 	reg[1:0] state;
 
 
@@ -55,24 +62,41 @@ module compress(
 			end
 
 			// Init vars.
-			in_ptr <= 0;
+			index <= 0;
 			out_ptr <= 0;
 
 		end else if (state == S_COMP) begin
-			// TODO dummy copy
-			// TODO not pipelined correctly
-			if (in_ptr >= rmem_len) begin
+			// In this cycle: Set raddr one index ahead.
+			// Set we.
+
+			rmem_addr <= index;
+			tmem_addr <= out_ptr;
+			tmem_din <= rmem_dout;
+
+			// we lags behind by 1.
+			if (index >= 1 && index < rmem_len + 1) begin
+				tmem_we <= 1;
+			end
+
+			state <= S_WRITE;
+
+		end else if (state == S_WRITE) begin
+			// In this cycle: Increment in and out index.
+
+			if (index >= rmem_len + 1) begin
+				// Check if done.
 				done <= 1;
 				state <= S_IDLE;
 				len <= out_ptr;
-			end else begin
-				rmem_addr <= in_ptr;
-				tmem_we <= 1;
-				tmem_addr <= out_ptr;
-				tmem_din <= rmem_dout;
 
-				in_ptr <= in_ptr + 1;
-				out_ptr <= out_ptr + 1;
+			end else begin
+				// Begin incrementing out_ptr 1 index = 2 cycles behind.
+				if (index >= 1 && index < rmem_len + 1) begin
+					out_ptr <= out_ptr + 1;
+				end
+				index <= index + 1;
+
+				state <= S_COMP;
 			end
 		end
 	end

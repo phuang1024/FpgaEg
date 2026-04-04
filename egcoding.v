@@ -175,7 +175,7 @@ module egcoding(
 		.start(comp_start),
 		.done(comp_done),
 		.rmem_addr(comp_r_addr),
-		.rmem_dout(rx_dout),
+		.rmem_dout(rmem_dout),
 		.rmem_len(rmem_len),
 		.tmem_we(comp_t_we),
 		.tmem_addr(comp_t_addr),
@@ -231,7 +231,6 @@ module egcoding(
 			end
 
 		end else if (state == S_SEND) begin
-			flag_debug <= 1;
 			tx_start <= tmod_tx_start;
 			tx_data <= tmod_tx_data;
 			if (tmod_done) begin
@@ -239,15 +238,15 @@ module egcoding(
 			end
 
 		end else if (state == S_COMP) begin
+			flag_debug <= 1;
 			if (comp_done) begin
-				state <= S_TX_WAIT;
-				state_ret <= S_IDLE;
-
 				tmem_len <= comp_len;
 
 				// Send return byte.
 				tx_data <= 0;
 				tx_start <= 1;
+				state <= S_TX_WAIT;
+				state_ret <= S_IDLE;
 			end
 
 		end else if (state == S_TX_WAIT) begin

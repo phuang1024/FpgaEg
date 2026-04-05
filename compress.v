@@ -13,7 +13,8 @@
 //   I.e. write bits [0:15] or [16:31] once the pointer advances past that index.
 
 // Pipelining latency:
-//   Write memory when 1 <= index <= len.
+//   Write memory when 2 <= index < len + 2.
+//   index is two ahead of out_ptr.
 
 module compress(
 	input wire clk,
@@ -27,7 +28,7 @@ module compress(
 
 	output reg tmem_we,
 	output reg[15:0] tmem_addr,
-	output reg[7:0] tmem_din,
+	output reg[15:0] tmem_din,
 
 	// Length as output variable.
 	output reg[15:0] len
@@ -49,6 +50,9 @@ module compress(
 	// Counter for compression. Is 1 index = 2 cycles ahead of out_ptr.
 	reg[15:0] index;
 	reg[15:0] out_ptr;
+
+	// This lags 2 cycles = 1 index behind rmem_dout.
+	reg[7:0] dout2;
 
 	localparam S_IDLE = 2'd0;
 	// Perform the word compression alg.
@@ -82,34 +86,44 @@ module compress(
 		end else if (state == S_COMP) begin
 			// In this cycle:
 			// Perform the EG compression; write to circular buffer.
-			// Set raddr one index ahead.
+			// Set raddr two index ahead.
+			// Set curr_size and dout2 to lag behind raddr by 1; lead out_ptr by 1.
 
-			if (index >= 1 && index <= rmem_len) begin
-				// Currently, rmem data is M[index - 1].
+			if (index >= 2 && index < rmem_len + 2) begin
+				// Currently, rmem data is M[index - 2].
 				// Write zeros and data, accounting for index wrap.
 				for (i = 0; i < 8; i = i + 1) begin
 					if (i < curr_size - 1) begin
-						buffer[buf_ptr + i] <= 0;
+						if (buf_ptr + i < 32)
+							buffer[buf_ptr + i] <= 0;
+						else
+							buffer[buf_ptr + i - 32] <= 0;
 					end
 					if (i < curr_size) begin
-						buffer[buf_ptr + curr_size - 1 + i] <= rmem_dout[curr_size - i - 1];
+						if (buf_ptr + curr_size - 1 + i < 32)
+							buffer[buf_ptr + curr_size - 1 + i] <= dout2[curr_size - 1 - i];
+						else
+							buffer[buf_ptr + curr_size - 1 + i - 32] <= dout2[curr_size - 1 - i];
 					end
 				end
 
 				// Check if word filled up.
 				buf_ready <= 0;
-				if (buf_ptr < 16 && buf_ptr + curr_size >= 16) begin
+				if (buf_ptr < 16 && buf_ptr + curr_size + curr_size - 1 >= 16) begin
 					buf_ready <= 1;
-				end else if (buf_ptr >= 16 && buf_ptr + curr_size >= 32) begin
+				end else if (buf_ptr >= 16 && buf_ptr + curr_size + curr_size - 1 >= 32) begin
 					buf_ready <= 2;
 				end
 
 				// Increment buf_ptr, automatic wrapping.
-				buf_ptr <= buf_ptr + curr_size;
+				buf_ptr <= buf_ptr + curr_size + curr_size - 1;
 			end
 
 			// Increment rmem's addr.
 			rmem_addr <= index;
+			// Set dout2 and curr_size one index behind.
+			dout2 <= rmem_dout;
+			curr_size <= size_lut[rmem_dout];
 
 			state <= S_WRITE;
 
@@ -117,16 +131,15 @@ module compress(
 			// In this cycle:
 			// If circular buffer word full, copy to tmem's data; and set we.
 			// Increment both indices.
-			// Set curr_size.
 
 			// Check if done.
-			if (index >= rmem_len + 1) begin
+			if (index >= rmem_len + 2) begin
 				done <= 1;
 				state <= S_IDLE;
 				len <= out_ptr;
 
 			end else begin
-				if (index >= 1 && index <= rmem_len) begin
+				if (index >= 2 && index < rmem_len + 2) begin
 					// Same as above, corresponds to M[index - 1].
 					if (buf_ready == 1)
 						tmem_din <= buffer[15:0];
@@ -141,9 +154,6 @@ module compress(
 				end
 
 				index <= index + 1;
-
-				curr_size <= size_lut[rmem_dout];
-
 				state <= S_COMP;
 			end
 		end

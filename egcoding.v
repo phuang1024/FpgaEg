@@ -130,8 +130,8 @@ module egcoding(
 	// Send memory. "tmem" means transmit memory.
 	reg tmem_we;
 	reg[15:0] tmem_addr;
-	reg[7:0] tmem_din;
-	wire[7:0] tmem_dout;
+	reg[15:0] tmem_din;
+	wire[15:0] tmem_dout;
 	memory#(
 		.DATA_WIDTH(16),
 		.ADDR_WIDTH(7)
@@ -209,6 +209,7 @@ module egcoding(
 		tx_start <= 0;
 
 		if (state == S_IDLE) begin
+			flag_debug <= 0;
 			// Wait for command byte.
 			if (rx_valid) begin
 				if (rx_data == 0) begin
@@ -231,7 +232,6 @@ module egcoding(
 			end
 
 		end else if (state == S_SEND) begin
-			flag_debug <= 1;
 			tx_start <= tmod_tx_start;
 			tx_data <= tmod_tx_data;
 			if (tmod_done) begin
@@ -239,6 +239,7 @@ module egcoding(
 			end
 
 		end else if (state == S_COMP) begin
+			flag_debug <= 1;
 			if (comp_done) begin
 				tmem_len <= comp_len;
 

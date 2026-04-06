@@ -14,13 +14,15 @@ module send_array(
 
 	// Wires to tmem.
 	output reg[15:0] mem_addr,
-	input wire[7:0] mem_data,
+	input wire[15:0] mem_data,
 
 	// Length.
 	input wire[15:0] len
 );
 	// Index of array.
 	reg[15:0] ptr;
+	// 0 means send M[i][7:0], 1 means [15:8].
+	reg byte_ptr;
 
 	// Misc counter for S_DATA waiting.
 	reg[7:0] counter;
@@ -28,7 +30,7 @@ module send_array(
 	localparam S_IDLE = 3'd0;
 	// Sending 2 length bytes.
 	localparam S_LEN = 3'd1;
-	// Set addr and data. Wait a few cycles.
+	// Set addr and data. Wait a few cycles for mem read latency.
 	localparam S_DATA = 3'd2;
 	// Signal TX to start.
 	localparam S_SEND = 3'd3;
@@ -52,6 +54,7 @@ module send_array(
 		if (state == S_IDLE) begin
 			counter <= 0;
 			ptr <= 0;
+			byte_ptr <= 0;
 			if (start)
 				state <= S_LEN;
 
@@ -72,22 +75,28 @@ module send_array(
 			end
 
 		end else if (state == S_DATA) begin
-			// Set tx_data = mem[ptr]
+			// Set tx_data = mem[ptr][byte]
 			mem_addr <= ptr;
-			tx_data <= mem_data;
+			if (byte_ptr)
+				tx_data <= mem_data[15:8];
+			else
+				tx_data <= mem_data[7:0];
 
+			// Stay in this state for a few cycles for stability.
 			counter <= counter + 1;
 			if (counter == 10)
 				state <= S_SEND;
 
 		end else if (state == S_SEND) begin
 			tx_start <= 1;
-			ptr <= ptr + 1;
+			if (byte_ptr == 1)
+				ptr <= ptr + 1;
+			byte_ptr <= byte_ptr + 1;
 
 			counter <= 0;
 
 			// Check if done.
-			if (ptr == len - 1) begin
+			if (ptr == len - 1 && byte_ptr == 1) begin
 				state_ret <= S_DONE;
 			end else begin
 				state_ret <= S_DATA;

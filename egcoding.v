@@ -231,6 +231,7 @@ module egcoding(
 			end
 
 		end else if (state == S_SEND) begin
+			flag_debug <= 1;
 			tx_start <= tmod_tx_start;
 			tx_data <= tmod_tx_data;
 			if (tmod_done) begin
@@ -238,7 +239,6 @@ module egcoding(
 			end
 
 		end else if (state == S_COMP) begin
-			flag_debug <= 1;
 			if (comp_done) begin
 				tmem_len <= comp_len;
 

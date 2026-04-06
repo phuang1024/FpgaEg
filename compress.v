@@ -59,6 +59,8 @@ module compress(
 	localparam S_COMP = 2'd1;
 	// Wait one cycle for tmem to write.
 	localparam S_WRITE = 2'd2;
+	// Write last (incomplete) byte, if applicable.
+	localparam S_FINISH = 2'd3;
 	reg[1:0] state;
 
 	integer i;
@@ -122,8 +124,9 @@ module compress(
 			// Increment rmem's addr.
 			rmem_addr <= index;
 			// Set dout2 and curr_size one index behind.
-			dout2 <= rmem_dout;
-			curr_size <= size_lut[rmem_dout];
+			// Also increment by 1 (per EG algorithm) here.
+			dout2 <= rmem_dout + 1;
+			curr_size <= size_lut[rmem_dout + 1];
 
 			state <= S_WRITE;
 
@@ -134,9 +137,7 @@ module compress(
 
 			// Check if done.
 			if (index >= rmem_len + 2) begin
-				done <= 1;
-				state <= S_IDLE;
-				len <= out_ptr;
+				state <= S_FINISH;
 
 			end else begin
 				if (index >= 2 && index < rmem_len + 2) begin
@@ -156,6 +157,34 @@ module compress(
 				index <= index + 1;
 				state <= S_COMP;
 			end
+
+		end else if (state == S_FINISH) begin
+			// Write the incomplete word to din, up to the bit ptr.
+			tmem_din <= 0;
+			for (i = 0; i < 16; i = i + 1) begin
+				if (buf_ptr < 16) begin
+					// First word.
+					if (i < buf_ptr)
+						tmem_din[i] <= buffer[i];
+				end else begin
+					// Second word.
+					if (i < buf_ptr - 16)
+						tmem_din[i] <= buffer[i + 16];
+				end
+			end
+
+			len <= out_ptr;
+
+			// Set write signal if nonzero written.
+			if (buf_ptr != 0 && buf_ptr != 16) begin
+				tmem_we <= 1;
+				tmem_addr <= out_ptr;
+				out_ptr <= out_ptr + 1;
+				len <= out_ptr + 1;
+			end
+
+			done <= 1;
+			state <= S_IDLE;
 		end
 	end
 endmodule

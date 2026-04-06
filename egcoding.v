@@ -81,7 +81,7 @@ module egcoding(
 	wire[7:0] rmem_dout;
 	memory#(
 		.DATA_WIDTH(8),
-		.ADDR_WIDTH(8)
+		.ADDR_WIDTH(10)
 	) rmem(
 		.clk(clk),
 		.we(rmem_we),
@@ -134,7 +134,7 @@ module egcoding(
 	wire[15:0] tmem_dout;
 	memory#(
 		.DATA_WIDTH(16),
-		.ADDR_WIDTH(7)
+		.ADDR_WIDTH(9)
 	) tmem(
 		.clk(clk),
 		.we(tmem_we),

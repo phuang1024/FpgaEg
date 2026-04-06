@@ -183,6 +183,27 @@ module egcoding(
 		.len(comp_len)
 	);
 
+	// Decompressor module. "dec" means decompressor.
+	reg dec_start;
+	wire dec_done;
+	wire[15:0] dec_r_addr;
+	wire dec_t_we;
+	wire[15:0] dec_t_addr;
+	wire[15:0] dec_t_din;
+	wire[15:0] dec_len;
+	decompress decompress_mod(
+		.clk(clk),
+		.start(dec_start),
+		.done(dec_done),
+		.rmem_addr(dec_r_addr),
+		.rmem_dout(rmem_dout),
+		.rmem_len(rmem_len),
+		.tmem_we(dec_t_we),
+		.tmem_addr(dec_t_addr),
+		.tmem_din(dec_t_din),
+		.len(dec_len)
+	);
+
 
 	// FSM states.
 	// IDLE, RECV, SEND, COMP: Waiting for respective submodules.
@@ -190,8 +211,9 @@ module egcoding(
 	localparam S_RECV = 3'd1;
 	localparam S_SEND = 3'd2;
 	localparam S_COMP = 3'd3;
+	localparam S_DEC = 3'd4;
 	// Wait for TX to finish sending; then return to "state_ret" state.
-	localparam S_TX_WAIT = 3'd4;
+	localparam S_TX_WAIT = 3'd5;
 
 	reg[2:0] state;
 	reg[2:0] state_ret;
@@ -216,11 +238,14 @@ module egcoding(
 					state <= S_RECV;
 					rmod_start <= 1;
 				end else if (rx_data == 1) begin
-					state <= S_COMP;
-					comp_start <= 1;
-				end else if (rx_data == 2) begin
 					state <= S_SEND;
 					tmod_start <= 1;
+				end else if (rx_data == 2) begin
+					state <= S_COMP;
+					comp_start <= 1;
+				end else if (rx_data == 3) begin
+					state <= S_DEC;
+					dec_start <= 1;
 				end
 			end
 
@@ -242,6 +267,17 @@ module egcoding(
 			flag_debug <= 1;
 			if (comp_done) begin
 				tmem_len <= comp_len;
+
+				// Send return byte.
+				tx_data <= 0;
+				tx_start <= 1;
+				state <= S_TX_WAIT;
+				state_ret <= S_IDLE;
+			end
+
+		end else if (state == S_DEC) begin
+			if (dec_done) begin
+				tmem_len <= dec_len;
 
 				// Send return byte.
 				tx_data <= 0;
@@ -276,6 +312,11 @@ module egcoding(
 			tmem_we = comp_t_we;
 			tmem_addr = comp_t_addr;
 			tmem_din = comp_t_din;
+		end else if (state == S_DEC) begin
+			rmem_addr = dec_r_addr;
+			tmem_we = dec_t_we;
+			tmem_addr = dec_t_addr;
+			tmem_din = dec_t_din;
 		end
 	end
 endmodule

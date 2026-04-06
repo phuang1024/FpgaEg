@@ -1,7 +1,5 @@
 *
 
 !/.gitignore
-
-!/*.qsf
+!/*.py
 !/*.v
-!/*.stp

@@ -3,7 +3,7 @@
 module send_array(
 	input wire clk,
 
-	// Flag to begin reading array.
+	// Flag to begin sending array.
 	input wire start,
 	output reg done,
 
@@ -17,7 +17,11 @@ module send_array(
 	input wire[15:0] mem_data,
 
 	// Length.
-	input wire[15:0] len
+	input wire[15:0] len,
+
+	// If true, sends each 16-bit word as 2 bytes (compress mode).
+	// If false, sends only [7:0] of each word (decompress mode).
+	input wire send_two_bytes
 );
 	// Index of array.
 	reg[15:0] ptr;
@@ -88,20 +92,30 @@ module send_array(
 				state <= S_SEND;
 
 		end else if (state == S_SEND) begin
-			tx_start <= 1;
-			if (byte_ptr == 1)
+			// Increment pointers based on mode.
+			if (send_two_bytes) begin
+				if (byte_ptr == 1)
+					ptr <= ptr + 1;
+				byte_ptr <= byte_ptr + 1;
+			end else begin
 				ptr <= ptr + 1;
-			byte_ptr <= byte_ptr + 1;
-
-			counter <= 0;
+				byte_ptr <= 0;
+			end
 
 			// Check if done.
-			if (ptr == len - 1 && byte_ptr == 1) begin
-				state_ret <= S_DONE;
-			end else begin
-				state_ret <= S_DATA;
+			state_ret <= S_DATA;
+			if (ptr == len - 1) begin
+				if (send_two_bytes) begin
+					if (byte_ptr == 1)
+						state_ret <= S_DONE;
+				end else begin
+					state_ret <= S_DONE;
+				end
 			end
+
+			tx_start <= 1;
 			state <= S_TX_WAIT;
+			counter <= 0;
 
 		end else if (state == S_DONE) begin
 			done <= 1;

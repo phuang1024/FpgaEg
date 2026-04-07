@@ -5,7 +5,9 @@ import numpy as np
 
 from serial import Serial
 
-ser = Serial("COM3", 9600)
+ser = Serial("/dev/ttyUSB0", 9600)
+
+DELAY = 0.01
 
 
 def send_array(data):
@@ -19,7 +21,7 @@ def send_array(data):
     print("Sending array.")
     ser.write(bytes(send_data))
     print("  Done sending.")
-    time.sleep(1)
+    time.sleep(DELAY)
 
 
 def recv_array(len_mult=1):
@@ -32,7 +34,7 @@ def recv_array(len_mult=1):
     ret_data = ser.read(ret_len * len_mult)
     ret_data = list(ret_data)
     print("  Received data.")
-    time.sleep(1)
+    time.sleep(DELAY)
     return ret_data
 
 
@@ -42,7 +44,7 @@ def command(cmd):
     print("  Waiting for response:")
     ret = ser.read(1)
     print("  Return:", ret)
-    time.sleep(1)
+    time.sleep(DELAY)
 
 
 # Generate random data array.

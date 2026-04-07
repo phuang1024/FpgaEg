@@ -21,7 +21,9 @@ module send_array(
 
 	// If true, sends each 16-bit word as 2 bytes (compress mode).
 	// If false, sends only [7:0] of each word (decompress mode).
-	input wire send_two_bytes
+	input wire send_two_bytes,
+	// If true, subtract one from value before sending.
+	input wire sub_one
 );
 	// Index of array.
 	reg[15:0] ptr;
@@ -88,8 +90,11 @@ module send_array(
 
 			// Stay in this state for a few cycles for stability.
 			counter <= counter + 1;
-			if (counter == 10)
+			if (counter == 10) begin
+				if (sub_one)
+					tx_data <= tx_data - 1;
 				state <= S_SEND;
+			end
 
 		end else if (state == S_SEND) begin
 			// Increment pointers based on mode.

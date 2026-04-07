@@ -151,6 +151,7 @@ module egcoding(
 	wire[15:0] tmod_addr;
 	// This flag is set in the COMP/DEC states, and persists to SEND.
 	reg tmod_send_two;
+	reg tmod_sub_one;
 	send_array transmit_mod(
 		.clk(clk),
 		.start(tmod_start),
@@ -161,7 +162,8 @@ module egcoding(
 		.mem_addr(tmod_addr),
 		.mem_data(tmem_dout),
 		.len(tmem_len),
-		.send_two_bytes(tmod_send_two)
+		.send_two_bytes(tmod_send_two),
+		.sub_one(tmod_sub_one)
 	);
 
 
@@ -261,7 +263,6 @@ module egcoding(
 			end
 
 		end else if (state == S_SEND) begin
-			flag_debug <= 1;
 			tx_start <= tmod_tx_start;
 			tx_data <= tmod_tx_data;
 			if (tmod_done) begin
@@ -270,6 +271,7 @@ module egcoding(
 
 		end else if (state == S_COMP) begin
 			tmod_send_two <= 1;
+			tmod_sub_one <= 0;
 			if (comp_done) begin
 				tmem_len <= comp_len;
 
@@ -281,7 +283,9 @@ module egcoding(
 			end
 
 		end else if (state == S_DEC) begin
+			flag_debug <= 1;
 			tmod_send_two <= 0;
+			tmod_sub_one <= 1;
 			if (dec_done) begin
 				tmem_len <= dec_len;
 

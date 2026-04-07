@@ -118,7 +118,7 @@ class Compressor:
     def __init__(self):
         self.port = Serial("/dev/ttyUSB0", 9600, timeout=3)
 
-        self.delay = 0.1
+        self.delay = 0.01
 
     def send(self, data):
         """
@@ -132,7 +132,7 @@ class Compressor:
         self.port.write(bytes(send_data))
         time.sleep(self.delay)
 
-    def recv(self):
+    def recv(self, size_mult=1):
         """
         Receive uint8 list.
         """
@@ -140,7 +140,7 @@ class Compressor:
         ret_len = self.port.read(2)
         ret_len = ret_len[0] + 256 * ret_len[1]
 
-        ret_data = self.port.read(ret_len)
+        ret_data = self.port.read(ret_len * size_mult)
         ret_data = list(ret_data)
 
         time.sleep(self.delay)
@@ -155,7 +155,7 @@ class Compressor:
     def compress(self, data):
         self.send(data)
         self.command(2)
-        compressed = self.recv()
+        compressed = self.recv(size_mult=2)
         return compressed
 
     def decompress(self, data):
@@ -183,13 +183,15 @@ def sim_allreduce(ten1, ten2, compressor):
     mag1, sign1 = quantize(ten1)
     mag2, sign2 = quantize(ten2)
 
-    tensors = [mag1, sign1, mag2, sign2]
+    tensors = [mag1, mag2]
     tensors = [compressor.compress(tensor.flatten().tolist()) for tensor in tensors]
     tensors = [torch.tensor(compressor.decompress(tensor)) for tensor in tensors]
     print("after comp and decmop:", [x.shape for x in tensors])
 
-    tensors = [tensor.float().reshape(*orig_shape) / QUANT_FAC for tensor in tensors]
-    mag1, sign1, mag2, sign2 = tensors
+    tensors = [tensor.float() / QUANT_FAC for tensor in tensors]
+    tensors = [tensor[:orig_shape.numel()].reshape(orig_shape) for tensor in tensors]
+    mag1, mag2 = tensors
+
     mag1[sign1 == 1] *= -1
     mag2[sign2 == 1] *= -1
     avg = (mag1 + mag2) / 2
